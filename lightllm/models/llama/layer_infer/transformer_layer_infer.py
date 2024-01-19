@@ -149,9 +149,9 @@ class LlamaTransformerLayerInfer(TransformerLayerInferTpl):
             with torch.cuda.stream(infer_state.parrall_stream):
                 splitfuse_context_attention_fwd_int8kv(q[infer_state.decode_req_num:, :].view(calcu_shape1),
                                                 infer_state.mem_manager.kv_buffer[self.layer_num_][:, 0: self.tp_k_head_num_, :],
-                                                infer_state.mem_manager.scale_buffer[self.layer_num_][:, 0: self.tp_k_head_num_, :],
+                                                infer_state.mem_manager.kv_scale_buffer[self.layer_num_][:, 0: self.tp_k_head_num_, :],
                                                 infer_state.mem_manager.kv_buffer[self.layer_num_][:, self.tp_k_head_num_: self.tp_k_head_num_+ self.tp_v_head_num_, :],
-                                                infer_state.mem_manager.scale_buffer[self.layer_num_][:, self.tp_k_head_num_: self.tp_k_head_num_+ self.tp_v_head_num_, :],
+                                                infer_state.mem_manager.kv_scale_buffer[self.layer_num_][:, self.tp_k_head_num_: self.tp_k_head_num_+ self.tp_v_head_num_, :],
                                                 o_tensor[infer_state.decode_req_num:, :].view(calcu_shape1),
                                                 infer_state.prefill_req_num,
                                                 infer_state.req_manager.req_to_token_indexs,
@@ -187,7 +187,7 @@ class LlamaTransformerLayerInfer(TransformerLayerInferTpl):
         destindex_copy_quantize_kv(buffer,
                                     mem_index,
                                     mem_manager.kv_buffer[self.layer_num_],
-                                    mem_manager.scale_buffer[self.layer_num_])
+                                    mem_manager.kv_scale_buffer[self.layer_num_])
         return
     
     def _copy_kv_to_mem_cache_ppl_int8kv(self, buffer, mem_index, mem_manager):
@@ -195,7 +195,7 @@ class LlamaTransformerLayerInfer(TransformerLayerInferTpl):
         destindex_copy_quantize_kv(buffer,
                                     mem_index,
                                     mem_manager.kv_buffer[self.layer_num_],
-                                    mem_manager.scale_buffer[self.layer_num_])
+                                    mem_manager.kv_scale_buffer[self.layer_num_])
         return
     
     def _token_decode_attention_normal(self, q, infer_state: LlamaInferStateInfo, layer_weight, out=None):
@@ -266,7 +266,7 @@ class LlamaTransformerLayerInfer(TransformerLayerInferTpl):
         att_m_tensor = torch.empty((self.tp_q_head_num_, total_token_num), dtype=q.dtype, device="cuda")
         token_att_fwd_int8k(q.view(calcu_shape1),
                             infer_state.mem_manager.kv_buffer[self.layer_num_][:, 0: self.tp_k_head_num_, :],
-                            infer_state.mem_manager.kv_buffer[self.layer_num_][:, self.tp_k_head_num_: self.tp_k_head_num_+ self.tp_v_head_num_, :],
+                            infer_state.mem_manager.kv_scale_buffer[self.layer_num_][:, 0: self.tp_k_head_num_, :],
                             att_m_tensor,
                             infer_state.req_manager.req_to_token_indexs,
                             infer_state.b_req_idx,
@@ -281,7 +281,7 @@ class LlamaTransformerLayerInfer(TransformerLayerInferTpl):
         o_tensor = torch.empty_like(q) if out is None else out
         token_att_fwd2_int8v(prob,
                                 infer_state.mem_manager.kv_buffer[self.layer_num_][:, self.tp_k_head_num_: self.tp_k_head_num_+ self.tp_v_head_num_, :],
-                                infer_state.mem_manager.scale_buffer[self.layer_num_][:, self.tp_k_head_num_: self.tp_k_head_num_+ self.tp_v_head_num_, :],
+                                infer_state.mem_manager.kv_scale_buffer[self.layer_num_][:, self.tp_k_head_num_: self.tp_k_head_num_+ self.tp_v_head_num_, :],
                                 o_tensor.view(calcu_shape1),
                                 infer_state.req_manager.req_to_token_indexs,
                                 infer_state.b_req_idx,
@@ -314,9 +314,9 @@ class LlamaTransformerLayerInfer(TransformerLayerInferTpl):
         group8_int8kv_decode_attention(o_tensor.view(calcu_shape1),
                                                           q.view(calcu_shape1),
                                                           infer_state.mem_manager.kv_buffer[self.layer_num_][:, 0: self.tp_k_head_num_, :],
-                                                          infer_state.mem_manager.scale_buffer[self.layer_num_][:, 0: self.tp_k_head_num_, :],
+                                                          infer_state.mem_manager.kv_scale_buffer[self.layer_num_][:, 0: self.tp_k_head_num_, :],
                                                           infer_state.mem_manager.kv_buffer[self.layer_num_][:, self.tp_k_head_num_: self.tp_k_head_num_+ self.tp_v_head_num_, :],
-                                                          infer_state.mem_manager.scale_buffer[self.layer_num_][:, self.tp_k_head_num_: self.tp_k_head_num_+ self.tp_v_head_num_, :],
+                                                          infer_state.mem_manager.kv_scale_buffer[self.layer_num_][:, self.tp_k_head_num_: self.tp_k_head_num_+ self.tp_v_head_num_, :],
                                                           infer_state.req_manager.req_to_token_indexs,
                                                           infer_state.b_req_idx,
                                                           infer_state.b_seq_len,
