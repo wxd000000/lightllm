@@ -26,6 +26,7 @@ def _rotary_kernel(
     dim_range0 = tl.arange(0, BLOCK_DMODEL // 2)
     dim_range1 = tl.arange(BLOCK_DMODEL // 2, BLOCK_DMODEL)
 
+
     off_q0 = cur_seq_range[:, None, None] * stride_qbs + cur_head_range[None, :, None] * stride_qh + dim_range0[None, None, :] * stride_qd
     off_q1 = cur_seq_range[:, None, None] * stride_qbs + cur_head_range[None, :, None] * stride_qh + dim_range1[None, None, :] * stride_qd
 
@@ -43,21 +44,24 @@ def _rotary_kernel(
     tl.store(Q + off_q0, out0, mask=(cur_seq_range[:, None, None] < max_total_len) & (cur_head_range[None, :, None] < HEAD_Q))
     tl.store(Q + off_q1, out1, mask=(cur_seq_range[:, None, None] < max_total_len) & (cur_head_range[None, :, None] < HEAD_Q))
 
-    off_dimcos_sin = cur_seq_range[:, None, None] * stride_cosbs + dim_range0[None, None, :] * stride_cosd
-    cos = tl.load(Cos + off_dimcos_sin, mask=cur_seq_range[:, None, None] < max_total_len, other=0.0)
-    sin = tl.load(Sin + off_dimcos_sin, mask=cur_seq_range[:, None, None] < max_total_len, other=0.0)
 
     off_k0 = cur_seq_range[:, None, None] * stride_kbs + cur_head_range[None, :, None] * stride_kh + dim_range0[None, None, :] * stride_kd
     off_k1 = cur_seq_range[:, None, None] * stride_kbs + cur_head_range[None, :, None] * stride_kh + dim_range1[None, None, :] * stride_kd
 
+    off_dimcos_sin = cur_seq_range[:, None, None] * stride_cosbs + dim_range0[None, None, :] * stride_cosd
+
     k0 = tl.load(K + off_k0, mask=(cur_seq_range[:, None, None] < max_total_len) & (cur_head_range[None, :, None] < HEAD_K), other=0.0)
     k1 = tl.load(K + off_k1, mask=(cur_seq_range[:, None, None] < max_total_len) & (cur_head_range[None, :, None] < HEAD_K), other=0.0)
+
+    cos = tl.load(Cos + off_dimcos_sin, mask=cur_seq_range[:, None, None] < max_total_len, other=0.0)
+    sin = tl.load(Sin + off_dimcos_sin, mask=cur_seq_range[:, None, None] < max_total_len, other=0.0)
 
     out_k0 = k0 * cos - k1 * sin
     out_k1 = k0 * sin + k1 * cos
 
     tl.store(K + off_k0, out_k0, mask=(cur_seq_range[:, None, None] < max_total_len) & (cur_head_range[None, :, None] < HEAD_K))
     tl.store(K + off_k1, out_k1, mask=(cur_seq_range[:, None, None] < max_total_len) & (cur_head_range[None, :, None] < HEAD_K))
+
     return
 
 
